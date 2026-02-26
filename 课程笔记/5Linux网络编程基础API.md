@@ -260,24 +260,30 @@ ssize_t send(int sockfd,const void *buf,size_t len,int flags);//发送	 用户�
 
 **flags参数**的常用值：**`MSG_OOB`**：表示发送或接收紧急数据
 
-> 代码清单5-6 发送带外数据——客户端发送数据到服务器
+### ==代码清单5-6== 发送带外数据——客户端发送数据到服务器
 
 ```c
+#include <string.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <string.h>
-#incldue <stdlib.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <libgen.h>
 
 int main(int argc,char* argv[])
 {
-	if(argc<2)
+	if(argc<=2)
 	{
 		printf("usage:%s ip_address port_number\n",basename(argv[0]));
-		return -1;
+		return 1;
 	}
 	const char* ip = argv[1];
 	int port = atoi(argv[2]);
@@ -285,7 +291,7 @@ int main(int argc,char* argv[])
 	struct sockaddr_in server_address;
 	bzero(&server_address,sizeof(server_address));
 	server_address.sin_family = AF_INET;
-	inet_pton(AP_INET,ip,&server_address.sin_addr);
+	inet_pton(AF_INET,ip,&server_address.sin_addr);
 	server_address.sin_port = htons(port);
 	
 	int sockfd = socket(PF_INET,SOCK_STREAM,0);
@@ -297,7 +303,7 @@ int main(int argc,char* argv[])
 		const char* oob_data = "abc";
 		const char* normal_data = "123";
 		send(sockfd,normal_data,strlen(normal_data),0);
-		send(sockfd,oob_data,strlen(oob_data),0);
+		send(sockfd,oob_data,strlen(oob_data),MSG_OOB);
         send(sockfd,normal_data,strlen(normal_data),0);
     }
     close(sockfd);
@@ -305,14 +311,94 @@ int main(int argc,char* argv[])
 }
 ```
 
+### ==代码清单 5-7== 接收带外数据——服务器接收来自客户端的数据
 
+```c
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <assert.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <libgen.h>
 
-> 代码清单 5-7 接收带外数据——服务器接收来自客户端的数据
+#define BUF_SIZE 1024
 
+int main(int argc,char* argv[])
+{
+    if(argc<=2)
+    {
+        printf("usage:%s ip_address port_number\n",basename(argv[0]));
+        return 1;
+    }
+    const char* ip = argv[1];
+    int port = atoi(argv[2]);
+
+    struct sockaddr_in address;
+    bzero(&address,sizeof(address));
+    address.sin_family = AF_INET;
+    inet_pton(AF_INET,ip,&address.sin_addr);
+    address.sin_port = htons(port);
+
+    int sock = socket(PF_INET,SOCK_STREAM,0);
+    assert(sock>=0);
+
+    int ret = bind(sock,(struct sockaddr*)&address,sizeof(address));
+    assert(ret != -1);
+
+    ret = listen(sock,5);
+    assert(ret != -1);
+
+    struct sockaddr_in client;
+    socklen_t client_addrlength = sizeof(client);
+    int connfd = accept(sock,(struct sockaddr*)&client,&client_addrlength);
+    if(connfd < 0)
+    {
+        printf("errno is %d\n",errno);
+    }
+    else 
+    {
+        char buffer[BUF_SIZE];
+        memset(buffer,'\0',BUF_SIZE);//重置接收缓冲区
+        ret = recv(connfd,buffer,BUF_SIZE-1,0);
+        printf("got %d bytes of normall data '%s'\n",ret,buffer);
+
+        memset(buffer,'\0',BUF_SIZE);//重置接收缓冲区
+        ret = recv(connfd,buffer,BUF_SIZE-1,MSG_OOB);
+        printf("got %d bytes of normall data '%s'\n",ret,buffer);
+
+        memset(buffer,'\0',BUF_SIZE);//重置接收缓冲区
+        ret = recv(connfd,buffer,BUF_SIZE-1,0);
+        printf("got %d bytes of normall data '%s'\n",ret,buffer);
+
+        close(connfd);
+    }
+    close(sock);
+    return 0;
+}
 ```
+
+### 运行结果分析：
+
+**客户端**：
+
+```bash
+yishang@yishang-virtual-machine:~/文档/Linux高性能服务器编程$ gcc -o 5-6发送带外数据 5-6发送带外数据.c 
+yishang@yishang-virtual-machine:~/文档/Linux高性能服务器编程$ ./5-6发送带外数据 127.0.0.1 8888
 ```
 
+**服务端**：
 
+```bash
+yishang@yishang-virtual-machine:~/文档/Linux高性能服务器编程$ gcc -o 5-7接收带 外数据 5-7接收带外数据.c 
+yishang@yishang-virtual-machine:~/文档/Linux高性能服务器编程$ ./5-7接收带外数据 127.0.0.1 8888
+got 5 bytes of normall data '123ab'
+got 1 bytes of normall data 'c'
+got 3 bytes of normall data '123'
+```
 
 ## 5.8.2 UDP数据读写
 
