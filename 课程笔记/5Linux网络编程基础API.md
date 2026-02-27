@@ -442,3 +442,45 @@ int sockatmark(int sockfd);
 ```
 
 sockatmark判断sockfd是否处于带外标记，即下一个被读取的数据是否是带外数据。如果是，sockatmark返回1，此时我们就可以利用带MSG_OOB标记的recv调用来接收带外数据，如果不是，则sockatmark返回0。
+
+# 5.10 地址信息函数
+
+````c
+#include <sys/socket.h>
+int getsockname(int sockfd,struct sockaddr* address,socklen_t* address_len);
+int getperrname(int sockfd,strcut sockaddr* address,socklen_t* address_len);
+````
+
+- getsockname获取sockfd对应的本端socket地址，并将其存储到adress参数指定的内存中，该socket地址的长度则存储于address_len参数指向的变量中。如果实际socket地址的长度大于address所指向内存区的大小，那么该socket地址将被截断。getsockname成功时返回0，失败时返回-1并设置errno。
+- getperrname获取sockefd对应的远端socket地址，其参数及返回值的含义与getsockname的参数和返回值相同。
+
+# 5.11 socket选项
+
+==87-94页==
+
+`fcntl`系统调用是控制文件描述符属性的通用POSIX方法(==参见 6高级IO函数.md==)，那么下面两个系统调用是专门用来**读取和设置socket文件描述符属性**的方法：
+
+```c
+#include <sys/socket.h>
+int getsockopt(int sockfd,int level,int option_name,void* option_value,socklen_t* restrict option_len);
+int setsockopt(int sockfd,int level,int option_name,const void* optio_value,socklen_t* option_len);
+```
+
+- `sockfd`参数：指定被操作的目标socket。
+- `level`参数：指定要操作哪个协议的选项（即属性）如：IPV4,IPV6，TCP等
+- `option_name`参数：指定选项的名字。
+- `option_value`参数：指定被操作选项的值
+- `option_len`参数：指定被操作选项的长度
+
+这两个函数成功时返回0，失败时返回-1并设置`errno`
+
+> 表5-5 socket选项
+
+![socket选项](D:\Typora\typora_work\Linux高性能服务器编程\socket选项.png)
+
+# 5-12 网络信息API
+
+==94-99页==
+
+
+

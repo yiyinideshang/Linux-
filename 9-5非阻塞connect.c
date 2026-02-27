@@ -62,7 +62,6 @@ int unblock_connect(const char* ip,int port,int time)
     fd_set writefds;
     fd_set readfds;
     struct timeval timeout;
-
     FD_ZERO(&readfds);
     FD_ZERO(&writefds);
     FD_SET(sockfd,&writefds);
